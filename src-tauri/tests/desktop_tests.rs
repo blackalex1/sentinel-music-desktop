@@ -11,7 +11,7 @@ fn test_tauri_config_exists_and_is_valid() {
 
     assert_eq!(json["productName"], "Sentinel Music");
     assert_eq!(json["identifier"], "com.sentinelmusic.desktop");
-    assert_eq!(json["version"], "1.0.0");
+    assert_eq!(json["version"], "0.0.1");
 }
 
 #[test]

@@ -1,6 +1,6 @@
 {
   "name": "sentinel-music-desktop",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Легковесный десктопный клиент на Tauri для домашнего музыкального сервера Sentinel Music",
   "scripts": {
     "tauri": "tauri",
