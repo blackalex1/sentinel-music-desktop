@@ -9,6 +9,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   test-and-build:
     name: Test and Build Desktop (Windows)
