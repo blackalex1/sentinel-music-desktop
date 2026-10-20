@@ -1,0 +1,14 @@
+{
+  "name": "sentinel-music-desktop",
+  "version": "1.0.0",
+  "description": "Легковесный десктопный клиент на Tauri для домашнего музыкального сервера Sentinel Music",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "test": "node tests/test_assets.js"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

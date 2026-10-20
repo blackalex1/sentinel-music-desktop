@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Авторизация — Sentinel Music</title>
+  <link rel="icon" type="image/svg+xml" href="img/logo.svg">
+
+  <!-- Шрифт Outfit и модульные стили Sentinel Design System -->
+  <link rel="stylesheet" href="libs/outfit/outfit.css">
+  <link rel="stylesheet" href="styles/variables.css">
+  <link rel="stylesheet" href="styles/login.css?v=1.0.0">
+</head>
+<body class="login-page">
+
+  <!-- Фоновые неоновые световые акценты -->
+  <div class="login-bg-glow"></div>
+
+  <!-- Карточка авторизации -->
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="logo-wrapper">
+        <img src="img/logo.svg" alt="Sentinel Logo" class="brand-logo">
+      </div>
+      <h1 class="brand-title">Sentinel Music</h1>
+      <p class="brand-subtitle" id="authSubtitle">Персональная фонотека и векторный Поток</p>
+    </div>
+
+    <!-- Вкладки переключения режима (Вход по паролю / По ключу или QR / Регистрация) -->
+    <div class="auth-tabs" id="authTabs">
+      <button type="button" class="auth-tab active" data-mode="login" id="tabLogin">Логин и пароль</button>
+      <button type="button" class="auth-tab" data-mode="token" id="tabToken">По ключу / QR</button>
+      <button type="button" class="auth-tab" data-mode="register" id="tabRegister" style="display: none;">Регистрация</button>
+    </div>
+
+    <!-- Информационный баннер (для первого запуска) -->
+    <div class="login-info" id="loginInfo" style="display: none;">
+      <svg class="svg-icon" viewBox="0 0 24 24" style="flex-shrink:0; width:18px; height:18px;">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+      <span id="infoText">Первый запуск: зарегистрируйте учетную запись администратора.</span>
+    </div>
+
+    <!-- Баннер ошибки -->
+    <div class="login-error" id="loginError" style="display: none;">
+      <svg class="svg-icon" viewBox="0 0 24 24" style="flex-shrink:0; width:18px; height:18px;">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <span id="errorText"></span>
+    </div>
+
+    <!-- Форма авторизации -->
+    <form id="loginForm" autocomplete="on">
+      <div class="form-group" id="usernameGroup">
+        <label class="form-label" for="usernameInput">Имя пользователя</label>
+        <div class="input-wrapper">
+          <svg class="svg-icon input-icon" viewBox="0 0 24 24">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <input
+            type="text"
+            id="usernameInput"
+            class="form-input"
+            placeholder="Введите ваш логин"
+            autocomplete="username"
+            required
+            autofocus
+          >
+        </div>
+      </div>
+
+      <div class="form-group" id="passwordGroup">
+        <label class="form-label" for="passwordInput">Пароль</label>
+        <div class="input-wrapper">
+          <svg class="svg-icon input-icon" viewBox="0 0 24 24">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <input
+            type="password"
+            id="passwordInput"
+            class="form-input"
+            placeholder="Введите пароль"
+            autocomplete="current-password"
+            required
+          >
+          <button type="button" class="toggle-password-btn" id="togglePasswordBtn" title="Показать/скрыть пароль">
+            <svg class="svg-icon" id="eyeIcon" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Вход по токену доступа или QR-сопряжению -->
+      <div class="form-group" id="tokenGroup" style="display: none;">
+        <label class="form-label" for="tokenInput">Ключ доступа или JSON сопряжения</label>
+        <div class="input-wrapper">
+          <svg class="svg-icon input-icon" viewBox="0 0 24 24">
+            <path d="M21 2l-2 2m-1.5 1.5L16 7l-1.5-1.5M19 5l-2.5 2.5M10.5 10.5a5 5 0 1 1-7.07 7.07 5 5 0 0 1 7.07-7.07zm0 0L19 2"></path>
+          </svg>
+          <input
+            type="text"
+            id="tokenInput"
+            class="form-input"
+            style="font-family: monospace; font-size: 0.82rem;"
+            placeholder='Вставьте токен или {"url":..., "token":...}'
+            autocomplete="off"
+          >
+        </div>
+        <div style="font-size: 0.76rem; color: var(--text-dim); margin-top: 6px; line-height: 1.4;">
+          Вставьте строку из QR-кода браузера. Адрес сервера и профиль настроятся автоматически.
+        </div>
+      </div>
+
+      <!-- Повтор пароля (только при регистрации) -->
+      <div class="form-group" id="confirmPasswordGroup" style="display: none;">
+        <label class="form-label" for="confirmPasswordInput">Подтверждение пароля</label>
+        <div class="input-wrapper">
+          <svg class="svg-icon input-icon" viewBox="0 0 24 24">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <input
+            type="password"
+            id="confirmPasswordInput"
+            class="form-input"
+            placeholder="Повторите пароль"
+            autocomplete="new-password"
+          >
+        </div>
+      </div>
+
+      <button type="submit" class="btn-submit" id="submitBtn">
+        <span id="submitBtnText">Войти в систему</span>
+      </button>
+    </form>
+
+    <!-- Настройка адреса сервера (актуально для ПК-приложения и удаленного подключения) -->
+    <div class="login-server-host" id="loginServerHostSection">
+      <button type="button" class="btn-toggle-server" id="toggleServerBtn" title="Настроить адрес подключения к серверу">
+        <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; flex-shrink:0;">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span id="currentServerLabel">Сервер: http://localhost:8000</span>
+      </button>
+
+      <div class="server-host-form" id="serverHostForm" style="display: none;">
+        <input type="text" id="serverHostInput" class="form-input form-input-sm" placeholder="http://192.168.1.X:8000">
+        <button type="button" class="btn-save-host" id="btnSaveHost">ОК</button>
+      </div>
+    </div>
+
+    <div class="login-footer">
+      Sentinel Music Ecosystem &bull; Self-Hosted Stream Platform
+    </div>
+  </div>
+
+  <!-- Модульная логика страницы авторизации -->
+  <script type="module">
+    import { getAuthToken, setAuthToken, setCurrentUser, clearAuthToken, getServerHost, setServerHost, isTauri } from './js/config.js';
+    import { checkAuthStatus, apiLogin, apiRegister, apiFetch } from './js/api.js';
+
+    let currentMode = 'login'; // 'login' | 'register' | 'token'
+
+    const form = document.getElementById('loginForm');
+    const usernameGroup = document.getElementById('usernameGroup');
+    const usernameInput = document.getElementById('usernameInput');
+    const passwordGroup = document.getElementById('passwordGroup');
+    const passwordInput = document.getElementById('passwordInput');
+    const tokenGroup = document.getElementById('tokenGroup');
+    const tokenInput = document.getElementById('tokenInput');
+    const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+    const confirmPasswordGroup = document.getElementById('confirmPasswordGroup');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitBtnText = document.getElementById('submitBtnText');
+    const errorBox = document.getElementById('loginError');
+    const errorText = document.getElementById('errorText');
+    const infoBox = document.getElementById('loginInfo');
+    const tabLogin = document.getElementById('tabLogin');
+    const tabToken = document.getElementById('tabToken');
+    const tabRegister = document.getElementById('tabRegister');
+    const authTabs = document.getElementById('authTabs');
+    const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+    const authSubtitle = document.getElementById('authSubtitle');
+
+    const toggleServerBtn = document.getElementById('toggleServerBtn');
+    const serverHostForm = document.getElementById('serverHostForm');
+    const serverHostInput = document.getElementById('serverHostInput');
+    const btnSaveHost = document.getElementById('btnSaveHost');
+    const currentServerLabel = document.getElementById('currentServerLabel');
+
+    // Настройка адреса сервера
+    function updateServerLabel() {
+      const host = getServerHost();
+      if (currentServerLabel) {
+        currentServerLabel.textContent = `Сервер: ${host}`;
+      }
+      if (serverHostInput) {
+        serverHostInput.value = host;
+      }
+    }
+
+    if (toggleServerBtn && serverHostForm) {
+      toggleServerBtn.addEventListener('click', () => {
+        const isHidden = serverHostForm.style.display === 'none';
+        serverHostForm.style.display = isHidden ? 'flex' : 'none';
+        if (isHidden && serverHostInput) {
+          serverHostInput.focus();
+        }
+      });
+    }
+
+    if (btnSaveHost && serverHostInput) {
+      btnSaveHost.addEventListener('click', () => {
+        const newHost = serverHostInput.value.trim();
+        if (newHost) {
+          setServerHost(newHost);
+          updateServerLabel();
+          serverHostForm.style.display = 'none';
+          location.reload();
+        }
+      });
+
+      serverHostInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          btnSaveHost.click();
+        }
+      });
+    }
+
+    updateServerLabel();
+
+    function showError(msg) {
+      errorText.textContent = msg;
+      errorBox.style.display = 'flex';
+    }
+
+    function hideError() {
+      errorBox.style.display = 'none';
+      errorText.textContent = '';
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      hideError();
+
+      if (mode === 'token') {
+        if (tabToken) tabToken.classList.add('active');
+        if (tabLogin) tabLogin.classList.remove('active');
+        if (tabRegister) tabRegister.classList.remove('active');
+        if (usernameGroup) usernameGroup.style.display = 'none';
+        if (usernameInput) usernameInput.required = false;
+        if (passwordGroup) passwordGroup.style.display = 'none';
+        if (passwordInput) passwordInput.required = false;
+        if (confirmPasswordGroup) confirmPasswordGroup.style.display = 'none';
+        if (confirmPasswordInput) confirmPasswordInput.required = false;
+        if (tokenGroup) tokenGroup.style.display = 'block';
+        if (tokenInput) tokenInput.required = true;
+        submitBtnText.textContent = 'Войти по ключу';
+        authSubtitle.textContent = 'Вход по ключу доступа или данным QR-сопряжения';
+        setTimeout(() => tokenInput && tokenInput.focus(), 50);
+      } else if (mode === 'register') {
+        if (tabRegister) tabRegister.classList.add('active');
+        if (tabLogin) tabLogin.classList.remove('active');
+        if (tabToken) tabToken.classList.remove('active');
+        if (usernameGroup) usernameGroup.style.display = 'block';
+        if (usernameInput) usernameInput.required = true;
+        if (passwordGroup) passwordGroup.style.display = 'block';
+        if (passwordInput) passwordInput.required = true;
+        if (confirmPasswordGroup) confirmPasswordGroup.style.display = 'block';
+        if (confirmPasswordInput) confirmPasswordInput.required = true;
+        if (tokenGroup) tokenGroup.style.display = 'none';
+        if (tokenInput) tokenInput.required = false;
+        passwordInput.autocomplete = 'new-password';
+        submitBtnText.textContent = 'Зарегистрироваться';
+        authSubtitle.textContent = 'Создание нового профиля слушателя';
+      } else {
+        if (tabLogin) tabLogin.classList.add('active');
+        if (tabToken) tabToken.classList.remove('active');
+        if (tabRegister) tabRegister.classList.remove('active');
+        if (usernameGroup) usernameGroup.style.display = 'block';
+        if (usernameInput) usernameInput.required = true;
+        if (passwordGroup) passwordGroup.style.display = 'block';
+        if (passwordInput) passwordInput.required = true;
+        if (confirmPasswordGroup) confirmPasswordGroup.style.display = 'none';
+        if (confirmPasswordInput) confirmPasswordInput.required = false;
+        if (tokenGroup) tokenGroup.style.display = 'none';
+        if (tokenInput) tokenInput.required = false;
+        passwordInput.autocomplete = 'current-password';
+        submitBtnText.textContent = 'Войти в систему';
+        authSubtitle.textContent = 'Персональная фонотека и векторный Поток';
+      }
+    }
+
+    // Переключение пароля (show/hide)
+    togglePasswordBtn.addEventListener('click', () => {
+      const isPwd = passwordInput.type === 'password';
+      passwordInput.type = isPwd ? 'text' : 'password';
+      togglePasswordBtn.style.color = isPwd ? 'var(--primary)' : 'var(--text-muted)';
+    });
+
+    // Переключение вкладок
+    if (tabLogin) tabLogin.addEventListener('click', () => setMode('login'));
+    if (tabToken) tabToken.addEventListener('click', () => setMode('token'));
+    if (tabRegister) tabRegister.addEventListener('click', () => setMode('register'));
+
+    // Вход по токену доступа или строке JSON из QR-кода
+    async function executeTokenLogin(rawInput) {
+      hideError();
+      let token = (rawInput || '').trim();
+      let serverHost = getServerHost();
+      let username = 'admin';
+
+      if (!token) {
+        showError('Пожалуйста, введите ключ или строку JSON.');
+        return;
+      }
+
+      // Если это JSON сопряжения (QR payload)
+      if (token.startsWith('{') && token.endsWith('}')) {
+        try {
+          const data = JSON.parse(token);
+          if (data.token) {
+            token = String(data.token).trim();
+          }
+          if (data.url) {
+            serverHost = String(data.url).trim().replace(/\/+$/, '');
+            setServerHost(serverHost);
+            updateServerLabel();
+          }
+          if (data.username) {
+            username = String(data.username);
+          }
+        } catch (e) {
+          showError('Не удалось разобрать строку JSON. Проверьте формат.');
+          return;
+        }
+      }
+
+      submitBtn.disabled = true;
+      const originalText = submitBtnText.textContent;
+      submitBtnText.textContent = 'Проверка ключа...';
+
+      try {
+        const targetUrl = `${serverHost.replace(/\/+$/, '')}/api/auth/me`;
+        const res = await fetch(targetUrl, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+          const userData = await res.json().catch(() => ({ username }));
+          setAuthToken(token);
+          setCurrentUser(userData.username ? userData : { username });
+          window.location.replace('index.html');
+        } else {
+          const err = await res.json().catch(() => ({}));
+          showError(err.detail || 'Ключ доступа недействителен или срок его действия истек.');
+          submitBtn.disabled = false;
+          submitBtnText.textContent = originalText;
+        }
+      } catch (err) {
+        showError(`Не удалось соединиться с сервером (${serverHost}). Убедитесь, что сервер запущен и доступен.`);
+        if (serverHostForm) {
+          serverHostForm.style.display = 'flex';
+        }
+        submitBtn.disabled = false;
+        submitBtnText.textContent = originalText;
+      }
+    }
+
+    // Автоматическое распознавание вставки JSON сопряжения в любое поле
+    function checkAutoTokenJson(val) {
+      if (!val) return false;
+      const trimmed = val.trim();
+      if (trimmed.startsWith('{') && (trimmed.includes('"token"') || trimmed.includes('"url"'))) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed.token) {
+            setMode('token');
+            if (tokenInput) tokenInput.value = trimmed;
+            executeTokenLogin(trimmed);
+            return true;
+          }
+        } catch (_) {}
+      }
+      return false;
+    }
+
+    if (usernameInput) {
+      usernameInput.addEventListener('input', () => {
+        checkAutoTokenJson(usernameInput.value);
+      });
+      usernameInput.addEventListener('paste', (e) => {
+        const pasted = (e.clipboardData || window.clipboardData)?.getData('text');
+        if (pasted && checkAutoTokenJson(pasted)) {
+          e.preventDefault();
+        }
+      });
+    }
+
+    if (tokenInput) {
+      tokenInput.addEventListener('input', () => {
+        const val = tokenInput.value.trim();
+        if (val.startsWith('{') && val.endsWith('}') && val.includes('"token"')) {
+          executeTokenLogin(val);
+        }
+      });
+      tokenInput.addEventListener('paste', (e) => {
+        const pasted = (e.clipboardData || window.clipboardData)?.getData('text');
+        if (pasted && checkAutoTokenJson(pasted)) {
+          e.preventDefault();
+        }
+      });
+    }
+
+    // Инициализация страницы
+    async function initPage() {
+      // 1. Проверяем, авторизован ли пользователь уже
+      const existingToken = getAuthToken();
+      if (existingToken) {
+        try {
+          const res = await apiFetch('/api/auth/me');
+          if (res.ok) {
+            window.location.replace('index.html');
+            return;
+          } else {
+            clearAuthToken();
+          }
+        } catch (_) {
+          // Сервер недоступен или ошибка сети — остаёмся на форме
+        }
+      }
+
+      // 2. Проверяем статус сервера (первичный запуск без админа)
+      try {
+        const status = await checkAuthStatus();
+        if (status && !status.initialized) {
+          infoBox.style.display = 'flex';
+          authTabs.style.display = 'none';
+          setMode('register');
+          submitBtnText.textContent = 'Создать администратора';
+          authSubtitle.textContent = 'Первоначальная настройка Sentinel Music';
+        }
+      } catch (err) {
+        console.warn('Не удалось запросить статус инициализации сервера:', err);
+        // Если в Tauri или десктопе не удается подключиться сразу, покажем форму сервера
+        if (isTauri && serverHostForm) {
+          serverHostForm.style.display = 'flex';
+        }
+      }
+    }
+
+    // Обработка отправки формы
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      if (currentMode === 'token') {
+        const val = tokenInput ? tokenInput.value.trim() : '';
+        await executeTokenLogin(val);
+        return;
+      }
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      if (!username || !password) {
+        showError('Пожалуйста, заполните имя пользователя и пароль.');
+        return;
+      }
+
+      if (currentMode === 'register') {
+        const confirmPassword = confirmPasswordInput.value.trim();
+        if (password !== confirmPassword) {
+          showError('Введенные пароли не совпадают.');
+          confirmPasswordInput.focus();
+          return;
+        }
+        if (password.length < 4) {
+          showError('Пароль должен содержать не менее 4 символов.');
+          passwordInput.focus();
+          return;
+        }
+      }
+
+      // Блокируем кнопку на время запроса
+      submitBtn.disabled = true;
+      const originalText = submitBtnText.textContent;
+      submitBtnText.textContent = 'Проверка...';
+
+      try {
+        const res = currentMode === 'register'
+          ? await apiRegister(username, password)
+          : await apiLogin(username, password);
+
+        const data = await res.json();
+
+        if (res.ok && data.token) {
+          setAuthToken(data.token);
+          setCurrentUser({ username: data.username || username });
+          // Мгновенный переход в приложение
+          window.location.replace('index.html');
+        } else {
+          showError(data.detail || 'Неверное имя пользователя или пароль.');
+          submitBtn.disabled = false;
+          submitBtnText.textContent = originalText;
+        }
+      } catch (err) {
+        const currentHost = getServerHost();
+        showError(`Не удалось соединиться с сервером (${currentHost}). Убедитесь, что сервер запущен, или укажите другой адрес.`);
+        if (serverHostForm) {
+          serverHostForm.style.display = 'flex';
+        }
+        submitBtn.disabled = false;
+        submitBtnText.textContent = originalText;
+      }
+    });
+
+    initPage();
+  </script>
+</body>
+</html>
