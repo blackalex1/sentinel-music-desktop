@@ -40,9 +40,88 @@ fn open_in_browser(url: String) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+async fn install_desktop_update(
+    app: tauri::AppHandle,
+    download_url: String,
+    is_installer: bool,
+) -> Result<(), String> {
+    if !download_url.starts_with("http://") && !download_url.starts_with("https://") {
+        return Err("Invalid URL protocol".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("sentinel_music_latest.exe");
+
+        // 1. Скачиваем файл обновления через нативный curl Windows
+        let download_status = std::process::Command::new("curl.exe")
+            .arg("-L")
+            .arg("-f")
+            .arg("-s")
+            .arg("-S")
+            .arg("-o")
+            .arg(&temp_file)
+            .arg(&download_url)
+            .creation_flags(CREATE_NO_WINDOW)
+            .status()
+            .map_err(|e| format!("Не удалось запустить загрузчик curl: {}", e))?;
+
+        if !download_status.success() {
+            return Err("Ошибка при скачивании файла обновления с GitHub".to_string());
+        }
+
+        // 2. Проверяем, что файл действительно скачался и имеет достаточный размер
+        let metadata = std::fs::metadata(&temp_file)
+            .map_err(|e| format!("Ошибка чтения загруженного файла: {}", e))?;
+        if metadata.len() < 100_000 {
+            return Err("Загруженный файл поврежден или имеет неверный размер".to_string());
+        }
+
+        // 3. Запуск обновления и перезапуск
+        let current_exe = std::env::current_exe()
+            .map_err(|e| format!("Не удалось определить путь текущего файла: {}", e))?;
+
+        if is_installer {
+            // Запуск установщика
+            std::process::Command::new("cmd")
+                .raw_arg(format!("/c start \"\" \"{}\"", temp_file.display()))
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn()
+                .map_err(|e| format!("Не удалось запустить установщик: {}", e))?;
+        } else {
+            // Для Portable .exe: ждем 1 сек (ping 127.0.0.1 -n 2), заменяем и запускаем
+            let replace_cmd = format!(
+                "/c ping 127.0.0.1 -n 2 >nul & move /y \"{}\" \"{}\" & start \"\" \"{}\"",
+                temp_file.display(),
+                current_exe.display(),
+                current_exe.display()
+            );
+            std::process::Command::new("cmd")
+                .raw_arg(replace_cmd)
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn()
+                .map_err(|e| format!("Не удалось инициировать замену программы: {}", e))?;
+        }
+
+        // Завершаем текущий экземпляр приложения
+        app.exit(0);
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        open_in_browser(download_url)
+    }
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_in_browser])
+        .invoke_handler(tauri::generate_handler![open_in_browser, install_desktop_update])
         .setup(|app| {
             // Создаем меню для системного трея
             let quit_i = MenuItem::with_id(app, "quit", "Выход из Sentinel Music", true, None::<&str>)?;
