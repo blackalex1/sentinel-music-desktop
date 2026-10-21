@@ -56,6 +56,9 @@ async function bootstrapApp() {
         updateState('currentUser', user);
         updateUserInfoUI(user);
 
+        // Гарантируем загрузку плагинов при подтверждении сессии
+        await loadFrontendPlugins();
+
         // Инициализация удаленного управления Sentinel Connect
         initRemoteConnect();
 

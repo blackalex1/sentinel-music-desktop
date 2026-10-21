@@ -40,6 +40,7 @@ const requiredFiles = [
     'styles/login.css',
     'styles/player.css',
     'styles/modals.css',
+    'styles/tracklist.css',
     'img/logo.png'
 ];
 
@@ -59,5 +60,18 @@ assert.ok(indexHtml.includes('js/app.js'), 'index.html должен подклю
 const loginHtml = fs.readFileSync(path.join(frontendDir, 'login.html'), 'utf8');
 assert.ok(loginHtml.includes('login-card') || loginHtml.includes('login-container') || loginHtml.includes('Sentinel Music'), 'login.html должен содержать экран входа');
 console.log('✓ index.html и login.html корректно содержат структуру приложения');
+
+// 6. Проверяем интеграцию динамического онлайн-поиска (по фонотеке и сети)
+const tracksViewPath = path.join(frontendDir, 'js', 'components', 'views', 'tracksView.js');
+const tracksViewJs = fs.readFileSync(tracksViewPath, 'utf8');
+assert.ok(tracksViewJs.includes('searchTabsBar'), 'tracksView.js должен содержать контейнер searchTabsBar');
+assert.ok(tracksViewJs.includes('searchCandidatesView'), 'tracksView.js должен содержать контейнер searchCandidatesView');
+
+const searchJsPath = path.join(frontendDir, 'js', 'ui', 'search.js');
+const searchJs = fs.readFileSync(searchJsPath, 'utf8');
+assert.ok(searchJs.includes('searchCandidates'), 'search.js должен запрашивать кандидатов из сети через searchCandidates');
+assert.ok(searchJs.includes('downloadCandidate'), 'search.js должен поддерживать скачивание кандидатов через downloadCandidate');
+assert.ok(searchJs.includes('toggleCandidatePreview'), 'search.js должен поддерживать предпрослушивание кандидатов');
+console.log('✓ Архитектура динамического поиска по фонотеке и сети успешно верифицирована');
 
 console.log('--- ВСЕ АССЕТ-ТЕСТЫ УСПЕШНО ПРОЙДЕНЫ! ---');
