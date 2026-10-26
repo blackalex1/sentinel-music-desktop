@@ -40,6 +40,33 @@ fn open_in_browser(url: String) -> Result<(), String> {
     }
 }
 
+#[derive(serde::Serialize)]
+struct AppInfo {
+    version: String,
+    is_installed: bool,
+    exe_path: String,
+}
+
+#[tauri::command]
+fn get_app_info(app: tauri::AppHandle) -> AppInfo {
+    let version = app.package_info().version.to_string();
+    let exe_path = std::env::current_exe().unwrap_or_default();
+    let exe_str = exe_path.to_string_lossy().to_lowercase();
+    let is_installed = if let Some(parent) = exe_path.parent() {
+        parent.join("uninstall.exe").exists()
+            || exe_str.contains("program files")
+            || exe_str.contains("local\\programs")
+    } else {
+        false
+    };
+
+    AppInfo {
+        version,
+        is_installed,
+        exe_path: exe_path.to_string_lossy().to_string(),
+    }
+}
+
 #[tauri::command]
 async fn install_desktop_update(
     app: tauri::AppHandle,
@@ -56,7 +83,15 @@ async fn install_desktop_update(
         const CREATE_NO_WINDOW: u32 = 0x08000000;
 
         let temp_dir = std::env::temp_dir();
-        let temp_file = temp_dir.join("sentinel_music_latest.exe");
+        let target_filename = if is_installer {
+            "sentinel_music_setup_latest.exe"
+        } else {
+            "sentinel_music_portable_latest.exe"
+        };
+        let temp_file = temp_dir.join(target_filename);
+
+        // Удаляем старый файл, если он остался от предыдущих обновлений
+        let _ = std::fs::remove_file(&temp_file);
 
         // 1. Скачиваем файл обновления через нативный curl Windows
         let download_status = std::process::Command::new("curl.exe")
@@ -78,37 +113,98 @@ async fn install_desktop_update(
         // 2. Проверяем, что файл действительно скачался и имеет достаточный размер
         let metadata = std::fs::metadata(&temp_file)
             .map_err(|e| format!("Ошибка чтения загруженного файла: {}", e))?;
-        if metadata.len() < 100_000 {
+        if metadata.len() < 500_000 {
             return Err("Загруженный файл поврежден или имеет неверный размер".to_string());
         }
 
-        // 3. Запуск обновления и перезапуск
+        // 3. Формируем надежный PowerShell-скрипт обновления
         let current_exe = std::env::current_exe()
             .map_err(|e| format!("Не удалось определить путь текущего файла: {}", e))?;
+        let current_pid = std::process::id();
+        let script_file = temp_dir.join("sentinel_updater.ps1");
 
-        if is_installer {
-            // Запуск установщика
-            std::process::Command::new("cmd")
-                .raw_arg(format!("/c start \"\" \"{}\"", temp_file.display()))
-                .creation_flags(CREATE_NO_WINDOW)
-                .spawn()
-                .map_err(|e| format!("Не удалось запустить установщик: {}", e))?;
+        let script_content = if is_installer {
+            format!(
+                r#"# Sentinel Music Installer Launcher
+$procId = {pid}
+$installer = '{installer}'
+
+for ($i = 0; $i -lt 30; $i++) {{
+    if (-not (Get-Process -Id $procId -ErrorAction SilentlyContinue)) {{ break }}
+    Start-Sleep -Milliseconds 300
+}}
+
+Start-Process -FilePath $installer
+"#,
+                pid = current_pid,
+                installer = temp_file.display().to_string().replace('\'', "''")
+            )
         } else {
-            // Для Portable .exe: ждем 1 сек (ping 127.0.0.1 -n 2), заменяем и запускаем
-            let replace_cmd = format!(
-                "/c ping 127.0.0.1 -n 2 >nul & move /y \"{}\" \"{}\" & start \"\" \"{}\"",
-                temp_file.display(),
-                current_exe.display(),
-                current_exe.display()
-            );
-            std::process::Command::new("cmd")
-                .raw_arg(replace_cmd)
-                .creation_flags(CREATE_NO_WINDOW)
-                .spawn()
-                .map_err(|e| format!("Не удалось инициировать замену программы: {}", e))?;
-        }
+            format!(
+                r#"# Sentinel Music Portable Self-Updater
+$procId = {pid}
+$temp = '{temp}'
+$target = '{target}'
+$backup = "$target.old"
 
-        // Завершаем текущий экземпляр приложения
+# 1. Ждем завершения старого процесса
+for ($i = 0; $i -lt 40; $i++) {{
+    if (-not (Get-Process -Id $procId -ErrorAction SilentlyContinue)) {{ break }}
+    Start-Sleep -Milliseconds 300
+}}
+
+# 2. Ротация и замена файлов с повторами при файловых блокировках Windows
+$replaced = $false
+for ($attempt = 0; $attempt -lt 15; $attempt++) {{
+    try {{
+        if (Test-Path -LiteralPath $backup) {{
+            Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+        }}
+        Move-Item -LiteralPath $target -Destination $backup -Force -ErrorAction Stop
+        Move-Item -LiteralPath $temp -Destination $target -Force -ErrorAction Stop
+        $replaced = $true
+        break
+    }} catch {{
+        Start-Sleep -Milliseconds 500
+    }}
+}}
+
+# 3. Запуск обновленной программы
+if ($replaced) {{
+    Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+    Start-Process -FilePath $target
+}} else {{
+    # В случае неудачи восстанавливаем резервную копию и запускаем
+    if (Test-Path -LiteralPath $backup) {{
+        Move-Item -LiteralPath $backup -Destination $target -Force -ErrorAction SilentlyContinue
+    }}
+    Start-Process -FilePath $target
+}}
+"#,
+                pid = current_pid,
+                temp = temp_file.display().to_string().replace('\'', "''"),
+                target = current_exe.display().to_string().replace('\'', "''")
+            )
+        };
+
+        std::fs::write(&script_file, script_content)
+            .map_err(|e| format!("Не удалось создать скрипт обновления: {}", e))?;
+
+        // 4. Запускаем PowerShell в фоновом режиме без окна
+        std::process::Command::new("powershell.exe")
+            .arg("-NoProfile")
+            .arg("-NonInteractive")
+            .arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-WindowStyle")
+            .arg("Hidden")
+            .arg("-File")
+            .arg(&script_file)
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| format!("Не удалось запустить скрипт обновления: {}", e))?;
+
+        // 5. Завершаем текущий экземпляр приложения
         app.exit(0);
         Ok(())
     }
@@ -121,7 +217,7 @@ async fn install_desktop_update(
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_in_browser, install_desktop_update])
+        .invoke_handler(tauri::generate_handler![open_in_browser, install_desktop_update, get_app_info])
         .setup(|app| {
             // Создаем меню для системного трея
             let quit_i = MenuItem::with_id(app, "quit", "Выход из Sentinel Music", true, None::<&str>)?;
