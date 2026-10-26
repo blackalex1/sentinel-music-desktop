@@ -1,6 +1,6 @@
 [package]
 name = "sentinel-music-desktop"
-version = "0.0.2"
+version = "0.0.3"
 description = "Легковесный десктопный плеер Sentinel Music"
 edition = "2021"
 

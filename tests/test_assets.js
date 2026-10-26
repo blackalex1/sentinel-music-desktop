@@ -9,7 +9,7 @@ const pkgPath = path.join(__dirname, '..', 'package.json');
 assert.ok(fs.existsSync(pkgPath), 'package.json должен существовать');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 assert.strictEqual(pkg.name, 'sentinel-music-desktop', 'Имя пакета должно быть sentinel-music-desktop');
-assert.strictEqual(pkg.version, '0.0.2', 'Версия пакета должна быть 0.0.2');
+assert.ok(/^\d+\.\d+\.\d+$/.test(pkg.version), 'Версия пакета должна быть семантической версией');
 assert.ok(pkg.scripts && pkg.scripts.build, 'Скрипт build должен быть определен в package.json');
 console.log('✓ package.json валиден');
 
