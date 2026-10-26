@@ -3,10 +3,11 @@
   "version": "0.0.3",
   "description": "Легковесный десктопный клиент на Tauri для домашнего музыкального сервера Sentinel Music",
   "scripts": {
-    "tauri": "tauri",
-    "dev": "tauri dev",
-    "build": "tauri build",
-    "test": "node tests/test_assets.js"
+    "sync-version": "node scripts/sync-version.js",
+    "tauri": "node scripts/sync-version.js && tauri",
+    "dev": "node scripts/sync-version.js && tauri dev",
+    "build": "node scripts/sync-version.js && tauri build",
+    "test": "node scripts/sync-version.js && node tests/test_assets.js"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"
