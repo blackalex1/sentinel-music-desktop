@@ -218,4 +218,58 @@ assert.ok(trackObj.preview_url.includes('/api/tracks/candidates/preview'));
 
 console.log('✓ Логика преобразования и нормализации кандидатов успешно проверена');
 
+// 7. Проверяем воспроизведение удаленных кандидатов (из Android / Sentinel Connect) в player.js
+const { initPlayer, playTrack, getAudioElement } = await import('../frontend/js/player.js');
+
+const mockAudioElement = {
+  src: '',
+  currentTime: 0,
+  paused: true,
+  play() { this.paused = false; return Promise.resolve(); },
+  pause() { this.paused = true; },
+  addEventListener() {},
+  removeEventListener() {},
+  style: {}
+};
+
+global.document.getElementById = (id) => {
+  if (id === 'audioElement') return mockAudioElement;
+  return null;
+};
+global.document.body = {
+  appendChild() {}
+};
+
+initPlayer();
+
+// Сценарий A: трек из Android с camelCase полями
+const androidRemoteTrack = {
+  id: -105372,
+  title: 'Android Stream Track',
+  artist: 'Online Artist',
+  duration: 180.0,
+  isPreview: true,
+  candidateId: 'cand_stream_remote_456',
+  coverUrl: 'http://example.com/cover.jpg'
+};
+
+playTrack(androidRemoteTrack, null, false, false);
+const audioEl = getAudioElement();
+assert.ok(audioEl.src.includes('/api/tracks/candidates/preview?candidate_id=cand_stream_remote_456'), `Ожидался URL предпрослушивания, получено: ${audioEl.src}`);
+
+// Сценарий B: трек со snake_case полями
+const snakeCaseRemoteTrack = {
+  id: -999,
+  title: 'Web Remote Track',
+  artist: 'Online Artist 2',
+  duration: 200.0,
+  is_preview: true,
+  candidate_id: 'cand_stream_remote_789'
+};
+
+playTrack(snakeCaseRemoteTrack, null, false, false);
+assert.ok(audioEl.src.includes('/api/tracks/candidates/preview?candidate_id=cand_stream_remote_789'), `Ожидался URL предпрослушивания, получено: ${audioEl.src}`);
+
+console.log('✓ Удаленное предпрослушивание кандидатов через player.js корректно маршрутизирует аудиопотоки');
+
 console.log('\n--- ВСЕ ТЕСТЫ УСПЕШНО ПРОЙДЕНЫ! ---');

@@ -216,6 +216,20 @@ if ($replaced) {{
 }
 
 fn main() {
+    #[cfg(target_os = "windows")]
+    {
+        // Разрешаем подключение к локальным IP и самоподписанным сертификатам без блокировки WebView2
+        let current_args = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
+        if !current_args.contains("--ignore-certificate-errors") {
+            let new_args = if current_args.is_empty() {
+                "--ignore-certificate-errors".to_string()
+            } else {
+                format!("{} --ignore-certificate-errors", current_args)
+            };
+            std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", new_args);
+        }
+    }
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![open_in_browser, install_desktop_update, get_app_info])
         .setup(|app| {
