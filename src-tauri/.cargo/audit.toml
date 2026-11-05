@@ -1,0 +1,8 @@
+[advisories]
+ignore = [
+    # RUSTSEC-2024-0429 / GHSA-wrw7-89jp-8q8g:
+    # glib v0.18.5 транзитивно подтягивается в Cargo.lock исключительно для Linux-стека Tauri v2 (через gtk 0.18.2).
+    # На Windows glib не компилируется и не линкуется в итоговые бинарники (.exe/.msi).
+    # Метод VariantStrIter нигде не вызывается. Полное обновление зависит от upstream миграции Tauri на GTK4.
+    "RUSTSEC-2024-0429",
+]
