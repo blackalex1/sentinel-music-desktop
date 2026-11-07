@@ -10,6 +10,6 @@
     "test": "node scripts/sync-version.js && node tests/test_assets.js"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0"
+    "@tauri-apps/cli": "^3.0.0-alpha.6"
   }
 }
